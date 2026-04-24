@@ -68,3 +68,4 @@ BGM is generated at runtime through WebAudio. It is an original 16-bit-inspired 
 - Review doc: `/mnt/c/Users/minou/fox-side-scroller/docs/persona-review-2026-04-24.md`
 - Follow-up review doc: `/mnt/c/Users/minou/fox-side-scroller/docs/persona-review-2026-04-25.md`
 - Smooth/score review doc: `/mnt/c/Users/minou/fox-side-scroller/docs/persona-review-smooth-score-2026-04-25.md`
+- Publication doc: `/mnt/c/Users/minou/fox-side-scroller/docs/publication-2026-04-25.md`
