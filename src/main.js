@@ -8,6 +8,7 @@ const weaponHudEl = document.querySelector("#weaponHud");
 const startButton = document.querySelector("#startButton");
 const audioButton = document.querySelector("#audioButton");
 const touchControls = document.querySelector("#touchControls");
+const touchHint = document.querySelector("#touchHint");
 const difficultyPanel = document.querySelector("#difficultyPanel");
 const difficultyButtons = Array.from(document.querySelectorAll("[data-difficulty]"));
 
@@ -269,6 +270,7 @@ function syncDifficulty() {
 function showStartControls(show) {
   startButton.classList.toggle("hidden", !show);
   difficultyPanel.classList.toggle("hidden", !show);
+  touchHint.classList.toggle("hidden", !show);
 }
 
 function currentDifficulty() {
@@ -677,6 +679,10 @@ function onGestureEnd(event) {
   touchMove.active = false;
   touchMove.pointerId = null;
   if (dy < -42 && Math.abs(dy) > Math.abs(dx) * 1.15) {
+    pulseTouch("jump", 150);
+    return;
+  }
+  if (event.clientY < window.innerHeight * 0.48 && elapsed < 260 && distance < 22) {
     pulseTouch("jump", 150);
     return;
   }

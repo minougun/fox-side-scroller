@@ -66,6 +66,7 @@ button {
 .icon-button,
 .start-button,
 .difficulty-panel,
+.touch-hint,
 .difficulty-button {
   border: 1px solid var(--line);
   background: var(--panel);
@@ -218,6 +219,28 @@ button {
   display: none;
 }
 
+.touch-hint {
+  position: fixed;
+  left: 50%;
+  bottom: max(212px, calc(env(safe-area-inset-bottom) + 212px));
+  z-index: 4;
+  display: none;
+  grid-template-columns: repeat(3, auto);
+  gap: 8px;
+  padding: 9px 12px;
+  transform: translateX(-50%);
+  border-radius: 8px;
+  color: #ffe2a4;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.touch-hint.hidden {
+  display: none;
+}
+
 .difficulty-title {
   margin-bottom: 10px;
   color: #ffe2a4;
@@ -262,6 +285,10 @@ button {
 @media (hover: none), (pointer: coarse) {
   .touch-controls {
     display: block;
+  }
+
+  .touch-hint {
+    display: grid;
   }
 }
 
@@ -309,6 +336,15 @@ button {
     padding: 12px;
   }
 
+  .touch-hint {
+    bottom: max(226px, calc(env(safe-area-inset-bottom) + 226px));
+    grid-template-columns: 1fr;
+    gap: 5px;
+    min-width: min(260px, calc(100vw - 32px));
+    padding: 10px 12px;
+    text-align: center;
+  }
+
   .difficulty-button {
     min-height: 40px;
     font-size: 13px;
@@ -349,6 +385,14 @@ button {
     bottom: max(148px, calc(env(safe-area-inset-bottom) + 148px));
     min-width: min(340px, calc(100vw - 20px));
     padding: 10px;
+  }
+
+  .touch-hint {
+    bottom: max(10px, calc(env(safe-area-inset-bottom) + 10px));
+    top: auto;
+    grid-template-columns: repeat(3, auto);
+    min-width: auto;
+    font-size: 11px;
   }
 
   .difficulty-title {
