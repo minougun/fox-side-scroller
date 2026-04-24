@@ -24,6 +24,7 @@ Then open:
 
 ## Controls
 
+- Select language before start: Japanese by default, or English
 - Select difficulty before start: Easy, Normal, or Hard
 - Move: Left/Right or A/D
 - Jump: Space, Up, or W
@@ -31,7 +32,7 @@ Then open:
 - Attack: J or K
 - Select sword after pickup: 1
 - Select gun after pickup: 2
-- Touch: hold left/right side of the screen to move, flick up or tap the upper half to jump, tap to attack, flick left/right to dash, double tap or two-finger tap to cycle collected weapons
+- Touch: hold left/right side of the screen to move, double tap to jump, tap to attack, flick left/right to dash, and two-finger tap to cycle collected weapons
 - PS4 controller: left stick/D-pad moves, Cross jumps/starts, Square attacks, Circle/R2 dashes, L1 selects sword, R1 selects gun, Triangle cycles weapons
 
 ## Sessions

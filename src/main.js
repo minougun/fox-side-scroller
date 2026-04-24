@@ -9,6 +9,8 @@ const startButton = document.querySelector("#startButton");
 const audioButton = document.querySelector("#audioButton");
 const touchControls = document.querySelector("#touchControls");
 const touchHint = document.querySelector("#touchHint");
+const languagePanel = document.querySelector("#languagePanel");
+const languageButtons = Array.from(document.querySelectorAll("[data-language]"));
 const difficultyPanel = document.querySelector("#difficultyPanel");
 const difficultyButtons = Array.from(document.querySelectorAll("[data-difficulty]"));
 
@@ -42,7 +44,8 @@ const touchMove = {
   y: 0,
   targetWorldX: 0,
   startedAt: 0,
-  lastTapAt: 0,
+  lastTapAt: -Infinity,
+  pendingAttack: null,
 };
 const controller = {
   left: false,
@@ -60,6 +63,44 @@ const rand = mulberry32(0x4f58a21);
 const GRAVITY = 2300;
 const FLOOR_Y = 458;
 const TILE = 48;
+const TEXT = {
+  ja: {
+    languageTitle: "言語",
+    difficultyTitle: "難易度",
+    easy: "やさしい",
+    normal: "ふつう",
+    hard: "むずかしい",
+    start: "スタート",
+    retry: "リトライ",
+    again: "もう一度",
+    miss: "ミス",
+    allClear: "全クリア",
+    tryAgain: "もう一度",
+    session: "セッション",
+    fruit: "フルーツ",
+    touchMove: "長押し: 移動",
+    touchJump: "ダブルタップ: ジャンプ",
+    touchAttack: "タップ: 攻撃",
+  },
+  en: {
+    languageTitle: "Language",
+    difficultyTitle: "Difficulty",
+    easy: "Easy",
+    normal: "Normal",
+    hard: "Hard",
+    start: "Start",
+    retry: "Retry",
+    again: "Again",
+    miss: "MISS",
+    allClear: "ALL CLEAR",
+    tryAgain: "try again",
+    session: "session",
+    fruit: "fruit",
+    touchMove: "Hold: Move",
+    touchJump: "Double Tap: Jump",
+    touchAttack: "Tap: Attack",
+  },
+};
 const DIFFICULTIES = {
   easy: {
     label: "Easy",
@@ -156,8 +197,9 @@ const player = {
 
 const camera = { x: 0, y: 0 };
 const audio = createAudioEngine();
-const game = { started: false, over: false, won: false, time: 0, last: 0, fruitCount: 0, score: 0, stageIndex: 0, stageBanner: 2, shake: 0, hitStop: 0, difficulty: "normal" };
+const game = { started: false, over: false, won: false, time: 0, last: 0, fruitCount: 0, score: 0, stageIndex: 0, stageBanner: 2, shake: 0, hitStop: 0, difficulty: "normal", language: "ja" };
 loadStage(0, { keepHealth: false });
+syncLanguage();
 syncHud();
 syncDifficulty();
 
@@ -183,6 +225,11 @@ audioButton.addEventListener("click", () => {
 difficultyButtons.forEach((button) => {
   button.addEventListener("click", () => {
     setDifficulty(button.dataset.difficulty);
+  });
+});
+languageButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    setLanguage(button.dataset.language);
   });
 });
 
@@ -256,9 +303,30 @@ function setDifficulty(mode) {
   syncDifficulty();
   if (!game.started || game.over || game.won) {
     loadStage(nextStageIndex, { keepHealth: false });
-    startButton.textContent = "Start";
+    startButton.textContent = currentText().start;
     showStartControls(true);
   }
+}
+
+function setLanguage(language) {
+  if (!TEXT[language]) return;
+  game.language = language;
+  syncLanguage();
+}
+
+function syncLanguage() {
+  const text = currentText();
+  document.documentElement.lang = game.language;
+  document.querySelectorAll("[data-i18n]").forEach((element) => {
+    const key = element.dataset.i18n;
+    if (text[key]) element.textContent = text[key];
+  });
+  languageButtons.forEach((button) => {
+    button.classList.toggle("selected", button.dataset.language === game.language);
+  });
+  if (!game.over && !game.won) startButton.textContent = text.start;
+  if (game.over) startButton.textContent = text.retry;
+  if (game.won) startButton.textContent = text.again;
 }
 
 function syncDifficulty() {
@@ -269,12 +337,17 @@ function syncDifficulty() {
 
 function showStartControls(show) {
   startButton.classList.toggle("hidden", !show);
+  languagePanel.classList.toggle("hidden", !show);
   difficultyPanel.classList.toggle("hidden", !show);
   touchHint.classList.toggle("hidden", !show);
 }
 
 function currentDifficulty() {
   return DIFFICULTIES[game.difficulty] || DIFFICULTIES.normal;
+}
+
+function currentText() {
+  return TEXT[game.language] || TEXT.ja;
 }
 
 function startGame() {
@@ -398,6 +471,7 @@ function loadStage(index, { keepHealth }) {
   game.shake = 0;
   game.hitStop = 0;
   syncHud();
+  syncLanguage();
 }
 
 function loop(now) {
@@ -679,23 +753,30 @@ function onGestureEnd(event) {
   touchMove.active = false;
   touchMove.pointerId = null;
   if (dy < -42 && Math.abs(dy) > Math.abs(dx) * 1.15) {
-    pulseTouch("jump", 150);
-    return;
-  }
-  if (event.clientY < window.innerHeight * 0.48 && elapsed < 260 && distance < 22) {
+    clearPendingAttack();
     pulseTouch("jump", 150);
     return;
   }
   if (Math.abs(dx) > 58 && Math.abs(dx) > Math.abs(dy) * 1.2) {
+    clearPendingAttack();
     player.dir = dx > 0 ? 1 : -1;
     pulseTouch("dash", 170);
     return;
   }
   if (elapsed < 250 && distance < 18) {
     const now = performance.now();
-    if (now - touchMove.lastTapAt < 280) cycleWeapon();
-    else pulseTouch("attack", 160);
-    touchMove.lastTapAt = now;
+    if (now - touchMove.lastTapAt < 300) {
+      clearPendingAttack();
+      pulseTouch("jump", 150);
+      touchMove.lastTapAt = -Infinity;
+    } else {
+      clearPendingAttack();
+      touchMove.pendingAttack = window.setTimeout(() => {
+        pulseTouch("attack", 160);
+        touchMove.pendingAttack = null;
+      }, 210);
+      touchMove.lastTapAt = now;
+    }
   }
 }
 
@@ -718,6 +799,12 @@ function updateTouchTargetFromClientX(clientX) {
 function pulseTouch(action, duration) {
   touch.add(action);
   window.setTimeout(() => touch.delete(action), duration);
+}
+
+function clearPendingAttack() {
+  if (!touchMove.pendingAttack) return;
+  window.clearTimeout(touchMove.pendingAttack);
+  touchMove.pendingAttack = null;
 }
 
 function updateProjectiles(dt) {
@@ -792,7 +879,7 @@ function hurtPlayer(amount) {
   syncHud();
   if (player.health <= 0) {
     game.over = true;
-    startButton.textContent = "Retry";
+    startButton.textContent = currentText().retry;
     showStartControls(true);
   }
 }
@@ -820,7 +907,7 @@ function win() {
   }
   game.won = true;
   player.win = true;
-  startButton.textContent = "Again";
+  startButton.textContent = currentText().again;
   showStartControls(true);
   audio.sfx("win");
   burst(goal.x + goal.w / 2, goal.y + 16, "#ffe2a4", 36, 420);
@@ -1739,14 +1826,15 @@ function drawOverlay() {
   ctx.fillStyle = "#fff4df";
   ctx.font = "900 56px Inter, system-ui, sans-serif";
   const stage = STAGES[game.stageIndex];
-  ctx.fillText(game.won ? "ALL CLEAR" : game.over ? "MISS" : `${stage.label} ${stage.name}`.toUpperCase(), 58, 130);
+  const text = currentText();
+  ctx.fillText(game.won ? text.allClear : game.over ? text.miss : `${stage.label} ${stage.name}`.toUpperCase(), 58, 130);
   ctx.font = "800 22px Inter, system-ui, sans-serif";
   ctx.fillStyle = "#ffe2a4";
   const line = game.won
-    ? `${game.fruitCount}/${fruit.length} fruit`
+    ? `${game.fruitCount}/${fruit.length} ${text.fruit}`
     : game.over
-      ? "try again"
-      : `session ${stage.label} / ${STAGES[STAGES.length - 1].label}`;
+      ? text.tryAgain
+      : `${text.session} ${stage.label} / ${STAGES[STAGES.length - 1].label}`;
   ctx.fillText(line, 62, 172);
   ctx.restore();
 }

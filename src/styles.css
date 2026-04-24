@@ -20,7 +20,7 @@ body {
     linear-gradient(135deg, #1e2822, #16100f 58%, #261b18);
   color: var(--ink);
   font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    Inter, "Noto Sans JP", "Hiragino Sans", "Yu Gothic", Meiryo, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 button {
@@ -66,7 +66,9 @@ button {
 .icon-button,
 .start-button,
 .difficulty-panel,
+.language-panel,
 .touch-hint,
+.language-button,
 .difficulty-button {
   border: 1px solid var(--line);
   background: var(--panel);
@@ -219,6 +221,22 @@ button {
   display: none;
 }
 
+.language-panel {
+  position: fixed;
+  left: 50%;
+  bottom: clamp(184px, 31vh, 238px);
+  z-index: 4;
+  min-width: min(300px, calc(100vw - 32px));
+  padding: 12px;
+  transform: translateX(-50%);
+  border-radius: 8px;
+  text-align: center;
+}
+
+.language-panel.hidden {
+  display: none;
+}
+
 .touch-hint {
   position: fixed;
   left: 50%;
@@ -241,6 +259,7 @@ button {
   display: none;
 }
 
+.language-title,
 .difficulty-title {
   margin-bottom: 10px;
   color: #ffe2a4;
@@ -250,12 +269,21 @@ button {
   text-transform: uppercase;
 }
 
+.language-options,
 .difficulty-options {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
   gap: 8px;
 }
 
+.language-options {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.difficulty-options {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.language-button,
 .difficulty-button {
   min-height: 42px;
   border-radius: 8px;
@@ -265,6 +293,7 @@ button {
   color: var(--ink);
 }
 
+.language-button.selected,
 .difficulty-button.selected {
   color: #241408;
   background: linear-gradient(#ffe2a4, #ffb32c);
@@ -336,8 +365,14 @@ button {
     padding: 12px;
   }
 
+  .language-panel {
+    bottom: max(220px, calc(env(safe-area-inset-bottom) + 220px));
+    min-width: min(310px, calc(100vw - 20px));
+    padding: 12px;
+  }
+
   .touch-hint {
-    bottom: max(226px, calc(env(safe-area-inset-bottom) + 226px));
+    bottom: max(344px, calc(env(safe-area-inset-bottom) + 344px));
     grid-template-columns: 1fr;
     gap: 5px;
     min-width: min(260px, calc(100vw - 32px));
@@ -345,6 +380,7 @@ button {
     text-align: center;
   }
 
+  .language-button,
   .difficulty-button {
     min-height: 40px;
     font-size: 13px;
@@ -387,6 +423,13 @@ button {
     padding: 10px;
   }
 
+  .language-panel {
+    top: max(72px, env(safe-area-inset-top));
+    bottom: auto;
+    min-width: min(300px, calc(100vw - 20px));
+    padding: 10px;
+  }
+
   .touch-hint {
     bottom: max(10px, calc(env(safe-area-inset-bottom) + 10px));
     top: auto;
@@ -395,11 +438,13 @@ button {
     font-size: 11px;
   }
 
+  .language-title,
   .difficulty-title {
     margin-bottom: 7px;
     font-size: 11px;
   }
 
+  .language-button,
   .difficulty-button {
     min-height: 34px;
     font-size: 12px;
