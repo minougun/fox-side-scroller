@@ -8,6 +8,10 @@ GitHub Pages URL:
 
 - https://minougun.github.io/fox-side-scroller/
 
+Current local source path:
+
+- `/mnt/c/Users/minou/fox-side-scroller/`
+
 ## Local Run
 
 ```bash
@@ -20,10 +24,22 @@ Then open:
 
 ## Controls
 
+- Select difficulty before start: Easy, Normal, or Hard
 - Move: Left/Right or A/D
 - Jump: Space, Up, or W
 - Dash: Shift
 - Attack: J or K
 - Select sword after pickup: 1
 - Select gun after pickup: 2
+- Touch: left/right buttons move, arrow-up jumps, lightning dashes, star attacks, swap cycles collected weapons
 - PS4 controller: left stick/D-pad moves, Cross jumps/starts, Square attacks, Circle/R2 dashes, L1 selects sword, R1 selects gun, Triangle cycles weapons
+
+## Sessions
+
+The current local build has nine sessions: 1-1, 1-2, 1-3, 2-1, 2-2, 2-3, 3-1, 3-2, and 3-3. Each session has a key pickup and a locked gate before the goal.
+
+## Difficulty
+
+- Easy: fewer enemies, slower patrols, shorter drone movement, and 4 player hearts
+- Normal: baseline enemy count, speed, movement, and 3 player hearts
+- Hard: extra enemies, faster patrols, wider movement, stronger enemy HP, and 3 player hearts

@@ -8,6 +8,8 @@ const weaponHudEl = document.querySelector("#weaponHud");
 const startButton = document.querySelector("#startButton");
 const audioButton = document.querySelector("#audioButton");
 const touchControls = document.querySelector("#touchControls");
+const difficultyPanel = document.querySelector("#difficultyPanel");
+const difficultyButtons = Array.from(document.querySelectorAll("[data-difficulty]"));
 
 const W = canvas.width;
 const H = canvas.height;
@@ -46,12 +48,56 @@ const rand = mulberry32(0x4f58a21);
 const GRAVITY = 2300;
 const FLOOR_Y = 458;
 const TILE = 48;
+const DIFFICULTIES = {
+  easy: {
+    label: "Easy",
+    enemyDensity: 0.68,
+    speedScale: 0.78,
+    patrolScale: 0.82,
+    hoverScale: 0.72,
+    hpDelta: -1,
+    playerHealth: 4,
+    hardExtras: false,
+  },
+  normal: {
+    label: "Normal",
+    enemyDensity: 1,
+    speedScale: 1,
+    patrolScale: 1,
+    hoverScale: 1,
+    hpDelta: 0,
+    playerHealth: 3,
+    hardExtras: false,
+  },
+  hard: {
+    label: "Hard",
+    enemyDensity: 1,
+    speedScale: 1.24,
+    patrolScale: 1.16,
+    hoverScale: 1.28,
+    hpDelta: 1,
+    playerHealth: 3,
+    hardExtras: true,
+  },
+};
 
-const STAGES = [buildStageOne(), buildStageTwo(), buildStageThree()];
+const STAGES = [
+  buildStageOne(),
+  buildStageTwo(),
+  buildStageThree(),
+  buildStageFour(),
+  buildStageFive(),
+  buildStageSix(),
+  buildStageSeven(),
+  buildStageEight(),
+  buildStageNine(),
+];
 let worldW = STAGES[0].worldW;
 let platforms = [];
 let fruit = [];
 let weaponPickups = [];
+let keyItems = [];
+let locks = [];
 let enemies = [];
 let goal = { x: 0, y: FLOOR_Y - 96, w: 44, h: 96 };
 const particles = [];
@@ -98,12 +144,15 @@ const player = {
 
 const camera = { x: 0, y: 0 };
 const audio = createAudioEngine();
-const game = { started: false, over: false, won: false, time: 0, last: 0, fruitCount: 0, score: 0, stageIndex: 0, stageBanner: 2, shake: 0, hitStop: 0 };
+const game = { started: false, over: false, won: false, time: 0, last: 0, fruitCount: 0, score: 0, stageIndex: 0, stageBanner: 2, shake: 0, hitStop: 0, difficulty: "normal" };
 loadStage(0, { keepHealth: false });
 syncHud();
+syncDifficulty();
 
 window.addEventListener("keydown", (event) => {
   if (["ArrowLeft", "ArrowRight", "ArrowUp", "Space", "Digit1", "Digit2"].includes(event.code)) event.preventDefault();
+  const difficultyByKey = { KeyE: "easy", KeyN: "normal", KeyH: "hard" }[event.code];
+  if (!game.started && difficultyByKey) setDifficulty(difficultyByKey);
   if (event.code === "Digit1") selectWeapon("sword");
   if (event.code === "Digit2") selectWeapon("gun");
   keys.add(event.code);
@@ -119,11 +168,20 @@ audioButton.addEventListener("click", () => {
   if (!audio.ready) audio.start();
   else audio.toggle();
 });
+difficultyButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    setDifficulty(button.dataset.difficulty);
+  });
+});
 
 touchControls.querySelectorAll("[data-action]").forEach((button) => {
   const action = button.dataset.action;
   const add = (event) => {
     event.preventDefault();
+    if (action === "cycle") {
+      cycleWeapon();
+      return;
+    }
     touch.add(action);
     if (!game.started) startGame();
   };
@@ -193,17 +251,88 @@ function cycleWeapon() {
   selectWeapon(next);
 }
 
+function setDifficulty(mode) {
+  if (!DIFFICULTIES[mode]) return;
+  const nextStageIndex = game.won ? 0 : game.stageIndex;
+  game.difficulty = mode;
+  if (game.won) game.stageIndex = 0;
+  syncDifficulty();
+  if (!game.started || game.over || game.won) {
+    loadStage(nextStageIndex, { keepHealth: false });
+    startButton.textContent = "Start";
+    showStartControls(true);
+  }
+}
+
+function syncDifficulty() {
+  difficultyButtons.forEach((button) => {
+    button.classList.toggle("selected", button.dataset.difficulty === game.difficulty);
+  });
+}
+
+function showStartControls(show) {
+  startButton.classList.toggle("hidden", !show);
+  difficultyPanel.classList.toggle("hidden", !show);
+}
+
+function currentDifficulty() {
+  return DIFFICULTIES[game.difficulty] || DIFFICULTIES.normal;
+}
+
 function startGame() {
   if (game.started && !game.over && !game.won) return;
   if (game.over || game.won) resetGame();
   game.started = true;
-  startButton.classList.add("hidden");
+  showStartControls(false);
   audio.start();
 }
 
 function resetGame() {
   if (game.won) game.stageIndex = 0;
   loadStage(game.stageIndex, { keepHealth: false });
+}
+
+function enemiesForDifficulty(baseEnemies, stageWidth) {
+  const settings = currentDifficulty();
+  let selected = baseEnemies;
+  if (settings.enemyDensity < 1) {
+    selected = baseEnemies.filter((enemy, index) => index % 3 !== 1 || index === baseEnemies.length - 1);
+  }
+  if (settings.hardExtras) {
+    const extras = baseEnemies
+      .filter((enemy, index) => index % 4 === 2)
+      .map((enemy, index) => hardEnemyClone(enemy, index, stageWidth));
+    selected = selected.concat(extras);
+  }
+  return selected.map((enemy, index) => tuneEnemyForDifficulty(enemy, index, stageWidth));
+}
+
+function hardEnemyClone(enemy, index, stageWidth) {
+  const offset = (index % 2 === 0 ? 1 : -1) * (150 + (index % 3) * 54);
+  const startX = clamp(enemy.startX + offset, Math.max(0, enemy.min + 12), Math.min(stageWidth - enemy.w, enemy.max - 12));
+  return {
+    ...enemy,
+    x: startX,
+    startX,
+    dir: -enemy.dir,
+    t: enemy.t + 1.4 + index * 0.27,
+  };
+}
+
+function tuneEnemyForDifficulty(enemy, index, stageWidth) {
+  const settings = currentDifficulty();
+  const center = (enemy.min + enemy.max) / 2;
+  const range = Math.max(80, (enemy.max - enemy.min) * settings.patrolScale);
+  const min = clamp(center - range / 2, 0, Math.max(0, stageWidth - enemy.w - 20));
+  const max = clamp(center + range / 2, min + 60, stageWidth - enemy.w);
+  return {
+    ...enemy,
+    min,
+    max,
+    speed: enemy.speed * settings.speedScale * (1 + (index % 3) * 0.025),
+    hp: Math.max(1, enemy.hp + settings.hpDelta),
+    hover: 28 * settings.hoverScale,
+  };
 }
 
 function loadStage(index, { keepHealth }) {
@@ -214,7 +343,9 @@ function loadStage(index, { keepHealth }) {
   platforms = stage.platforms.map((p) => ({ ...p }));
   fruit = stage.fruit.map((item) => ({ ...item, got: false }));
   weaponPickups = stage.weapons.map((item) => ({ ...item, got: false }));
-  enemies = stage.enemies.map((enemy) => ({
+  keyItems = stage.keys.map((item) => ({ ...item, got: false }));
+  locks = stage.locks.map((item) => ({ ...item, open: false }));
+  enemies = enemiesForDifficulty(stage.enemies, stage.worldW).map((enemy) => ({
     ...enemy,
     dead: false,
     hit: 0,
@@ -235,7 +366,7 @@ function loadStage(index, { keepHealth }) {
     grounded: false,
     coyote: 0,
     jumpBuffer: 0,
-    health: keepHealth ? Math.max(1, player.health) : 3,
+    health: keepHealth ? Math.max(1, player.health) : currentDifficulty().playerHealth,
     invuln: 0,
     attack: 0,
     dashCooldown: 0,
@@ -294,19 +425,20 @@ function update(dt) {
     updateEnemies(simDt);
     collectFruit();
     collectWeaponPickups();
+    collectKeyItems();
   }
   updateParticles(dt);
   camera.x = clamp(lerp(camera.x, player.x - 310, 1 - Math.pow(0.0007, dt)), 0, worldW - W);
   camera.y = lerp(camera.y, Math.max(-40, player.y - 330), 1 - Math.pow(0.002, dt));
-  if (overlap(player, goal)) win();
+  if (overlap(player, goal) && locks.every((lock) => lock.open)) win();
 }
 
 function updatePlayer(dt) {
   const left = keys.has("ArrowLeft") || keys.has("KeyA") || touch.has("left") || controller.left;
   const right = keys.has("ArrowRight") || keys.has("KeyD") || touch.has("right") || controller.right;
   const jump = keys.has("Space") || keys.has("ArrowUp") || keys.has("KeyW") || touch.has("jump") || controller.jump;
-  const dash = keys.has("ShiftLeft") || keys.has("ShiftRight") || controller.dash;
-  const weapon = keys.has("KeyJ") || keys.has("KeyK") || touch.has("dash") || controller.weapon;
+  const dash = keys.has("ShiftLeft") || keys.has("ShiftRight") || touch.has("dash") || controller.dash;
+  const weapon = keys.has("KeyJ") || keys.has("KeyK") || touch.has("attack") || controller.weapon;
 
   const accel = player.grounded ? 3400 : 2350;
   const maxSpeed = player.attack > 0 ? 520 : 330;
@@ -390,7 +522,8 @@ function updatePlayer(dt) {
 function moveAndCollide(body, dt) {
   body.x += body.vx * dt;
   body.x = clamp(body.x, 0, worldW - body.w);
-  for (const p of platforms) {
+  const solids = platforms.concat(locks.filter((lock) => !lock.open));
+  for (const p of solids) {
     if (!overlap(body, p)) continue;
     if (body.vx > 0) body.x = p.x - body.w;
     if (body.vx < 0) body.x = p.x + p.w;
@@ -399,7 +532,7 @@ function moveAndCollide(body, dt) {
 
   body.y += body.vy * dt;
   body.grounded = false;
-  for (const p of platforms) {
+  for (const p of solids) {
     if (!overlap(body, p)) continue;
     if (body.vy > 0) {
       body.y = p.y - body.h;
@@ -421,7 +554,7 @@ function updateEnemies(dt) {
     if (enemy.stun > 0) continue;
     if (enemy.kind === "drone") {
       enemy.x += enemy.dir * enemy.speed * dt;
-      enemy.y = enemy.startY + Math.sin(enemy.t * 2.4) * 28;
+      enemy.y = enemy.startY + Math.sin(enemy.t * 2.4) * enemy.hover;
     } else {
       enemy.x += enemy.dir * enemy.speed * dt;
     }
@@ -481,6 +614,19 @@ function collectWeaponPickups() {
     burst(item.x + item.w / 2, item.y + item.h / 2, item.type === "sword" ? "#fff1cf" : "#8dd9ff", 18, 320);
     audio.sfx("fruit");
     syncHud();
+  }
+}
+
+function collectKeyItems() {
+  for (const item of keyItems) {
+    if (item.got || !overlap(player, item)) continue;
+    item.got = true;
+    locks.forEach((lock) => {
+      lock.open = true;
+    });
+    game.shake = Math.max(game.shake, reducedMotion ? 0 : 5);
+    burst(item.x + item.w / 2, item.y + item.h / 2, "#ffe2a4", 26, 360);
+    audio.sfx("win");
   }
 }
 
@@ -557,7 +703,7 @@ function hurtPlayer(amount) {
   if (player.health <= 0) {
     game.over = true;
     startButton.textContent = "Retry";
-    startButton.classList.remove("hidden");
+    showStartControls(true);
   }
 }
 
@@ -585,7 +731,7 @@ function win() {
   game.won = true;
   player.win = true;
   startButton.textContent = "Again";
-  startButton.classList.remove("hidden");
+  showStartControls(true);
   audio.sfx("win");
   burst(goal.x + goal.w / 2, goal.y + 16, "#ffe2a4", 36, 420);
 }
@@ -625,6 +771,8 @@ function draw() {
   drawWorld();
   drawFruit();
   drawWeaponPickups();
+  drawKeyItems();
+  drawLocks();
   drawEnemies();
   drawProjectiles();
   drawGoal();
@@ -772,6 +920,41 @@ function drawWeaponPickups() {
     else drawPickupGun("#8dd9ff");
     ctx.restore();
   }
+}
+
+function drawKeyItems() {
+  for (const item of keyItems) {
+    if (item.got) continue;
+    const bob = Math.sin(game.time * 3.8 + item.x * 0.05) * 5;
+    ctx.save();
+    ctx.translate(item.x + item.w / 2, item.y + item.h / 2 + bob);
+    px(-25, -25, 50, 50, "rgba(255, 226, 164, 0.18)");
+    px(-12, -8, 21, 16, "#ffe2a4");
+    px(-8, -4, 10, 8, "#7b4b1f");
+    px(6, -3, 25, 7, "#ffb32c");
+    px(22, 4, 6, 12, "#ffb32c");
+    px(12, 4, 5, 8, "#ffb32c");
+    px(-14, -10, 25, 4, "#fff4df");
+    ctx.restore();
+  }
+}
+
+function drawLocks() {
+  for (const lock of locks) {
+    ctx.save();
+    ctx.globalAlpha = lock.open ? 0.34 : 1;
+    ctx.translate(lock.x, lock.y);
+    px(0, 0, lock.w, lock.h, lock.open ? "rgba(255,226,164,0.2)" : "#2d2118");
+    px(6, 8, lock.w - 12, lock.h - 16, lock.open ? "rgba(125,182,75,0.22)" : "#6a4528");
+    px(10, 16, lock.w - 20, 10, "#ffe2a4");
+    px(lock.w / 2 - 8, 38, 16, 18, lock.open ? "#8fc34f" : "#ffb32c");
+    px(lock.w / 2 - 4, 54, 8, 20, "#241814");
+    for (let y = 84; y < lock.h - 12; y += 18) {
+      px(9, y, lock.w - 18, 5, "rgba(255,244,223,0.2)");
+    }
+    ctx.restore();
+  }
+  ctx.globalAlpha = 1;
 }
 
 function drawPickupSword(color) {
@@ -1451,7 +1634,7 @@ function drawStageBanner() {
   ctx.textAlign = "center";
   ctx.fillStyle = "#fff4df";
   ctx.font = "900 28px Inter, system-ui, sans-serif";
-  ctx.fillText(`STAGE ${game.stageIndex + 1}`, W / 2, 104);
+  ctx.fillText(stage.label, W / 2, 104);
   ctx.font = "800 16px Inter, system-ui, sans-serif";
   ctx.fillStyle = "#ffe2a4";
   ctx.fillText(stage.name, W / 2, 132);
@@ -1465,14 +1648,15 @@ function drawOverlay() {
   ctx.textAlign = "left";
   ctx.fillStyle = "#fff4df";
   ctx.font = "900 56px Inter, system-ui, sans-serif";
-  ctx.fillText(game.won ? "ALL CLEAR" : game.over ? "MISS" : STAGES[game.stageIndex].name.toUpperCase(), 58, 130);
+  const stage = STAGES[game.stageIndex];
+  ctx.fillText(game.won ? "ALL CLEAR" : game.over ? "MISS" : `${stage.label} ${stage.name}`.toUpperCase(), 58, 130);
   ctx.font = "800 22px Inter, system-ui, sans-serif";
   ctx.fillStyle = "#ffe2a4";
   const line = game.won
     ? `${game.fruitCount}/${fruit.length} fruit`
     : game.over
       ? "try again"
-      : `stage ${game.stageIndex + 1} / ${STAGES.length}`;
+      : `session ${stage.label} / ${STAGES[STAGES.length - 1].label}`;
   ctx.fillText(line, 62, 172);
   ctx.restore();
 }
@@ -1657,6 +1841,7 @@ function rect(x, y, w, h) {
 
 function buildStageOne() {
   return {
+    label: "1-1",
     name: "Forest Run",
     worldW: 9000,
     startX: 120,
@@ -1695,16 +1880,27 @@ function buildStageOne() {
       weaponItem("sword", 285, FLOOR_Y - 58),
       weaponItem("gun", 1480, FLOOR_Y - 58),
     ],
+    keys: [
+      keyItem(4320, FLOOR_Y - 58),
+    ],
+    locks: [
+      lockGate(8760),
+    ],
     enemies: [
       beetle(835, FLOOR_Y - 38, 760, 910),
+      beetle(1110, FLOOR_Y - 38, 1040, 1420),
       slime(1320, FLOOR_Y - 42, 1080, 1460),
       drone(2030, 270, 1860, 2220),
+      drone(2320, 306, 2180, 2560),
       beetle(2535, FLOOR_Y - 38, 1830, 2620),
       pod(3340, FLOOR_Y - 36, 2790, 3470),
+      slime(3710, FLOOR_Y - 42, 3630, 4300),
       drone(4010, 250, 3760, 4210),
       slime(4960, FLOOR_Y - 42, 4550, 5260),
+      pod(5320, FLOOR_Y - 36, 4860, 5360),
       beetle(5890, FLOOR_Y - 38, 5480, 6100),
       drone(6650, 258, 6360, 6900),
+      beetle(7040, FLOOR_Y - 38, 6660, 7120),
       pod(7690, FLOOR_Y - 36, 7280, 7880),
       slime(8520, FLOOR_Y - 42, 8100, 8900),
     ],
@@ -1714,6 +1910,7 @@ function buildStageOne() {
 
 function buildStageTwo() {
   return {
+    label: "1-2",
     name: "Canopy Ruins",
     worldW: 6500,
     startX: 110,
@@ -1746,13 +1943,23 @@ function buildStageTwo() {
       weaponItem("sword", 560, FLOOR_Y - 58),
       weaponItem("gun", 1740, FLOOR_Y - 58),
     ],
+    keys: [
+      keyItem(3680, FLOOR_Y - 58),
+    ],
+    locks: [
+      lockGate(6240),
+    ],
     enemies: [
       drone(760, 260, 620, 880),
       pod(1230, FLOOR_Y - 36, 930, 1400),
+      drone(1480, 278, 1180, 1540),
       beetle(1960, FLOOR_Y - 38, 1650, 2140),
+      beetle(2240, FLOOR_Y - 38, 1960, 2260),
       slime(2630, FLOOR_Y - 42, 2400, 2820),
       drone(3440, 220, 3180, 3640),
+      slime(3740, FLOOR_Y - 42, 3180, 3840),
       pod(4300, FLOOR_Y - 36, 4010, 4500),
+      drone(4740, 258, 4480, 5060),
       beetle(5120, FLOOR_Y - 38, 4780, 5240),
       slime(6040, FLOOR_Y - 42, 5520, 6420),
     ],
@@ -1762,6 +1969,7 @@ function buildStageTwo() {
 
 function buildStageThree() {
   return {
+    label: "1-3",
     name: "Moonlit Grove",
     worldW: 7600,
     startX: 110,
@@ -1797,18 +2005,150 @@ function buildStageThree() {
       weaponItem("sword", 470, FLOOR_Y - 58),
       weaponItem("gun", 2260, FLOOR_Y - 58),
     ],
+    keys: [
+      keyItem(4320, FLOOR_Y - 58),
+    ],
+    locks: [
+      lockGate(7350),
+    ],
     enemies: [
       beetle(1020, FLOOR_Y - 38, 830, 1280),
+      slime(1350, FLOOR_Y - 42, 830, 1390),
       drone(1750, 252, 1560, 1980),
       pod(2580, FLOOR_Y - 36, 2240, 2830),
+      drone(2910, 284, 2360, 3040),
       slime(3300, FLOOR_Y - 42, 3090, 3460),
       drone(4080, 230, 3820, 4340),
+      pod(4460, FLOOR_Y - 36, 3780, 4560),
       beetle(5050, FLOOR_Y - 38, 4710, 5210),
+      slime(5340, FLOOR_Y - 42, 4720, 5420),
       pod(5780, FLOOR_Y - 36, 5480, 5940),
       drone(6640, 250, 6260, 6840),
       slime(7190, FLOOR_Y - 42, 6810, 7540),
     ],
     goal: { x: 7480, y: FLOOR_Y - 96, w: 44, h: 96 },
+  };
+}
+
+function buildStageFour() {
+  const stage = buildStageOne();
+  return remixStage(stage, {
+    label: "2-1",
+    name: "Riverfall Outpost",
+    keyX: 5120,
+    lockX: 8760,
+    extraFruit: [gem(1510, 285), gem(3740, 398), gem(6140, 286), gem(7770, 296)],
+    extraEnemies: [
+      drone(1510, 300, 1260, 1640),
+      slime(2190, FLOOR_Y - 42, 1760, 2630),
+      beetle(4560, FLOOR_Y - 38, 4520, 5300),
+      drone(6100, 250, 5760, 6300),
+      pod(8440, FLOOR_Y - 36, 8060, 8840),
+    ],
+  });
+}
+
+function buildStageFive() {
+  const stage = buildStageTwo();
+  return remixStage(stage, {
+    label: "2-2",
+    name: "Mossworks Lift",
+    keyX: 4210,
+    lockX: 6240,
+    extraFruit: [gem(930, 398), gem(2290, 398), gem(3910, 286), gem(5350, 398)],
+    extraEnemies: [
+      beetle(1040, FLOOR_Y - 38, 920, 1450),
+      slime(2120, FLOOR_Y - 42, 1640, 2230),
+      pod(2860, FLOOR_Y - 36, 2400, 2960),
+      drone(3880, 246, 3540, 4210),
+      beetle(5620, FLOOR_Y - 38, 5500, 6340),
+    ],
+  });
+}
+
+function buildStageSix() {
+  const stage = buildStageThree();
+  return remixStage(stage, {
+    label: "2-3",
+    name: "Amber Gate",
+    keyX: 4920,
+    lockX: 7350,
+    extraFruit: [gem(900, 398), gem(2130, 398), gem(3690, 398), gem(6150, 398)],
+    extraEnemies: [
+      pod(1210, FLOOR_Y - 36, 830, 1390),
+      beetle(2140, FLOOR_Y - 38, 1540, 2100),
+      drone(3560, 268, 3180, 3920),
+      slime(4620, FLOOR_Y - 42, 3740, 5310),
+      beetle(6320, FLOOR_Y - 38, 6240, 7200),
+    ],
+  });
+}
+
+function buildStageSeven() {
+  const stage = buildStageOne();
+  return remixStage(stage, {
+    label: "3-1",
+    name: "Cinderroot Run",
+    keyX: 5660,
+    lockX: 8760,
+    extraFruit: [gem(1620, 398), gem(2810, 398), gem(5260, 398), gem(7140, 398), gem(8640, 398)],
+    extraEnemies: [
+      pod(1460, FLOOR_Y - 36, 1030, 1640),
+      drone(2860, 238, 2460, 3360),
+      slime(4540, FLOOR_Y - 42, 4540, 5280),
+      beetle(6220, FLOOR_Y - 38, 5480, 7120),
+      drone(8070, 258, 7280, 8840),
+      slime(8740, FLOOR_Y - 42, 8060, 8900),
+    ],
+  });
+}
+
+function buildStageEight() {
+  const stage = buildStageTwo();
+  return remixStage(stage, {
+    label: "3-2",
+    name: "Fossil Canopy",
+    keyX: 4930,
+    lockX: 6240,
+    extraFruit: [gem(1540, 398), gem(3000, 398), gem(4680, 398), gem(6410, 398)],
+    extraEnemies: [
+      slime(980, FLOOR_Y - 42, 900, 1490),
+      drone(2320, 250, 1940, 2780),
+      beetle(3060, FLOOR_Y - 38, 2400, 3840),
+      pod(4620, FLOOR_Y - 36, 4000, 5240),
+      drone(5900, 246, 5500, 6420),
+    ],
+  });
+}
+
+function buildStageNine() {
+  const stage = buildStageThree();
+  return remixStage(stage, {
+    label: "3-3",
+    name: "Moon Crown",
+    keyX: 6500,
+    lockX: 7350,
+    extraFruit: [gem(1420, 398), gem(2980, 398), gem(4560, 398), gem(6100, 398), gem(7340, 398)],
+    extraEnemies: [
+      drone(1320, 260, 820, 1900),
+      pod(2180, FLOOR_Y - 36, 1540, 2920),
+      beetle(3820, FLOOR_Y - 38, 3060, 4560),
+      slime(5180, FLOOR_Y - 42, 4700, 6100),
+      drone(6220, 228, 5440, 7200),
+      pod(7040, FLOOR_Y - 36, 6240, 7540),
+    ],
+  });
+}
+
+function remixStage(stage, { label, name, keyX, lockX, extraFruit = [], extraEnemies = [] }) {
+  return {
+    ...stage,
+    label,
+    name,
+    fruit: stage.fruit.concat(extraFruit),
+    keys: [keyItem(keyX, FLOOR_Y - 58)],
+    locks: [lockGate(lockX)],
+    enemies: stage.enemies.concat(extraEnemies),
   };
 }
 
@@ -1819,6 +2159,14 @@ function gem(x, y) {
 
 function weaponItem(type, x, y) {
   return { type, x, y, w: 42, h: 42, got: false };
+}
+
+function keyItem(x, y) {
+  return { x, y, w: 42, h: 42, got: false };
+}
+
+function lockGate(x) {
+  return { x, y: FLOOR_Y - 118, w: 44, h: 118, open: false };
 }
 
 function beetle(x, y, min, max) {

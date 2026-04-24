@@ -45,6 +45,11 @@ BGM is generated at runtime through WebAudio. It is an original 16-bit-inspired 
 - 2026-04-25 update: progression blockers from unreachable platforms were corrected. Mandatory floor gaps are now capped at 120px across all stages, raised platforms are capped at 120px above the floor line, and jump strength was increased from 760 to 820 vertical speed for a more forgiving normal jump.
 - 2026-04-25 update: enemy defeat score feedback was restyled as a large numbers-only popup near the defeat point, while the HUD score keeps zero padding. The fox design was returned to the earlier clean fox look, while enemies retain darker arcade-style accents. The sword hitbox remains wider with a small forward lunge to make score-triggering kills easier.
 - 2026-04-25 update: DualShock 4 / PS4 controller support was added through the browser Gamepad API. The app now polls connected standard gamepads each frame and maps left stick/D-pad movement, Cross jump/start, Square attack, Circle/R2 dash, L1 sword select, R1 gun select, and Triangle weapon cycling.
+- 2026-04-25 update: session progression now uses the `1-1`, `1-2`, `1-3` pattern and continues through `3-3`. The original three-session-per-stage rhythm is preserved, while the total local build has nine sessions.
+- 2026-04-25 update: each session now includes a key pickup and a locked gate before the goal. The player must collect the key to open the gate and clear the session.
+- 2026-04-25 update: later sessions remix the existing reachable terrain with denser enemy placement and extra fruit, so the challenge increases without reintroducing unreachable jumps.
+- 2026-04-25 update: mobile play now has dedicated touch controls for left, right, weapon cycle, dash, attack, and jump. HUD score text was adjusted to avoid wrapping on phone-width viewports.
+- 2026-04-25 update: a pre-start difficulty selector was added. Easy reduces enemy count, speed, patrol range, drone hover amplitude, and enemy HP while giving the player 4 hearts. Normal preserves the baseline. Hard adds extra enemies and increases enemy speed, patrol range, drone hover amplitude, and HP.
 - Inputs: keyboard, touch buttons, and browser Gamepad API controllers such as DualShock 4 / PS4 controllers.
 - `prefers-reduced-motion` reduces particle count and parallax movement while preserving playability.
 
@@ -56,16 +61,35 @@ BGM is generated at runtime through WebAudio. It is an original 16-bit-inspired 
 - Select sword after pickup: `1`
 - Select gun after pickup: `2`
 - Attack with selected collected weapon: `J` or `K`
-- Touch: arrow buttons move/jump, `✦` attacks with the selected weapon.
+- Touch: `‹`/`›` move, `⌃` jumps, `↯` dashes, `✦` attacks with the selected weapon, and `⇄` cycles collected weapons.
 - PS4 controller: left stick or D-pad moves, Cross jumps/starts, Square attacks, Circle or R2 dashes, L1 selects sword, R1 selects gun, Triangle cycles collected weapons.
+
+## Current Session List
+
+- Stage 1 sessions: `1-1 Forest Run`, `1-2 Canopy Ruins`, `1-3 Moonlit Grove`
+- Stage 2 sessions: `2-1 Riverfall Outpost`, `2-2 Mossworks Lift`, `2-3 Amber Gate`
+- Stage 3 sessions: `3-1 Cinderroot Run`, `3-2 Fossil Canopy`, `3-3 Moon Crown`
+
+## Progression Gates
+
+- Every session has one key item and one locked gate.
+- Closed gates participate in collision and the goal only clears when all gates in the session are open.
+- Key collection opens the session gate and triggers a small feedback burst.
+
+## Difficulty Rules
+
+- `Easy`: about two thirds of baseline enemies remain, enemy speed is scaled down, patrol ranges are shorter, drone hover movement is smaller, enemy HP is reduced with a minimum of 1, and player health starts at 4.
+- `Normal`: baseline enemy count, movement, HP, and 3 player health.
+- `Hard`: baseline enemies plus cloned pressure enemies, faster movement, wider patrol ranges, stronger drone hover movement, +1 enemy HP, and 3 player health.
 
 ## GitHub / Docs Mapping
 
-- GitHub Issue: not_applicable, local-only prototype request and no target repository/remote was specified.
-- Commit: not_applicable, no commit requested.
-- PR: not_applicable, no remote publication requested.
+- GitHub Issue: not_applicable, direct production push was requested without issue workflow.
+- Commit: recorded in final completion report for the production push.
+- PR: not_applicable, direct push to `main` was requested.
 - Design doc: `/mnt/c/Users/minou/fox-side-scroller/docs/side-scroller-design.md`
 - Review doc: `/mnt/c/Users/minou/fox-side-scroller/docs/persona-review-2026-04-24.md`
 - Follow-up review doc: `/mnt/c/Users/minou/fox-side-scroller/docs/persona-review-2026-04-25.md`
 - Smooth/score review doc: `/mnt/c/Users/minou/fox-side-scroller/docs/persona-review-smooth-score-2026-04-25.md`
 - Publication doc: `/mnt/c/Users/minou/fox-side-scroller/docs/publication-2026-04-25.md`
+- Rights review doc: `/mnt/c/Users/minou/fox-side-scroller/docs/rights-review-2026-04-25.md`

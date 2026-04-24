@@ -20,11 +20,25 @@
         <button id="audioButton" class="icon-button" type="button" title="Sound">♪</button>
       </div>
       <div id="touchControls" class="touch-controls" aria-hidden="true">
-        <button data-action="left" class="touch-button">‹</button>
-        <button data-action="right" class="touch-button">›</button>
-        <button data-action="dash" class="touch-button">✦</button>
-        <button data-action="jump" class="touch-button">⌃</button>
+        <div class="touch-group">
+          <button data-action="left" class="touch-button">‹</button>
+          <button data-action="right" class="touch-button">›</button>
+        </div>
+        <div class="touch-group">
+          <button data-action="cycle" class="touch-button">⇄</button>
+          <button data-action="dash" class="touch-button">↯</button>
+          <button data-action="attack" class="touch-button">✦</button>
+          <button data-action="jump" class="touch-button">⌃</button>
+        </div>
       </div>
+      <section id="difficultyPanel" class="difficulty-panel" aria-label="Difficulty">
+        <div class="difficulty-title">Difficulty</div>
+        <div class="difficulty-options">
+          <button class="difficulty-button" type="button" data-difficulty="easy">Easy</button>
+          <button class="difficulty-button selected" type="button" data-difficulty="normal">Normal</button>
+          <button class="difficulty-button" type="button" data-difficulty="hard">Hard</button>
+        </div>
+      </section>
       <button id="startButton" class="start-button" type="button">Start</button>
     </main>
     <script type="module" src="./src/main.js"></script>
