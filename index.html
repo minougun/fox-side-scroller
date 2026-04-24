@@ -20,27 +20,29 @@
         <button id="audioButton" class="icon-button" type="button" title="Sound">♪</button>
       </div>
       <div id="touchControls" class="touch-controls" aria-hidden="true"></div>
-      <div id="touchHint" class="touch-hint" aria-hidden="true">
-        <div data-i18n="touchMove">長押し: 移動</div>
-        <div data-i18n="touchJump">ダブルタップ: ジャンプ</div>
-        <div data-i18n="touchAttack">タップ: 攻撃</div>
+      <div class="start-menu" aria-hidden="true">
+        <div id="touchHint" class="touch-hint" aria-hidden="true">
+          <div data-i18n="touchMove">長押し: 移動</div>
+          <div data-i18n="touchJump">ダブルタップ: ジャンプ</div>
+          <div data-i18n="touchAttack">タップ: 攻撃</div>
+        </div>
+        <section id="languagePanel" class="language-panel" aria-label="Language">
+          <div class="language-title" data-i18n="languageTitle">言語</div>
+          <div class="language-options">
+            <button class="language-button selected" type="button" data-language="ja">日本語</button>
+            <button class="language-button" type="button" data-language="en">English</button>
+          </div>
+        </section>
+        <section id="difficultyPanel" class="difficulty-panel" aria-label="Difficulty">
+          <div class="difficulty-title" data-i18n="difficultyTitle">難易度</div>
+          <div class="difficulty-options">
+            <button class="difficulty-button" type="button" data-difficulty="easy" data-i18n="easy">やさしい</button>
+            <button class="difficulty-button selected" type="button" data-difficulty="normal" data-i18n="normal">ふつう</button>
+            <button class="difficulty-button" type="button" data-difficulty="hard" data-i18n="hard">むずかしい</button>
+          </div>
+        </section>
+        <button id="startButton" class="start-button" type="button" data-i18n="start">スタート</button>
       </div>
-      <section id="languagePanel" class="language-panel" aria-label="Language">
-        <div class="language-title" data-i18n="languageTitle">言語</div>
-        <div class="language-options">
-          <button class="language-button selected" type="button" data-language="ja">日本語</button>
-          <button class="language-button" type="button" data-language="en">English</button>
-        </div>
-      </section>
-      <section id="difficultyPanel" class="difficulty-panel" aria-label="Difficulty">
-        <div class="difficulty-title" data-i18n="difficultyTitle">難易度</div>
-        <div class="difficulty-options">
-          <button class="difficulty-button" type="button" data-difficulty="easy" data-i18n="easy">やさしい</button>
-          <button class="difficulty-button selected" type="button" data-difficulty="normal" data-i18n="normal">ふつう</button>
-          <button class="difficulty-button" type="button" data-difficulty="hard" data-i18n="hard">むずかしい</button>
-        </div>
-      </section>
-      <button id="startButton" class="start-button" type="button" data-i18n="start">スタート</button>
     </main>
     <script type="module" src="./src/main.js"></script>
   </body>
