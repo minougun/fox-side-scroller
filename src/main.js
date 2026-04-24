@@ -32,6 +32,17 @@ const assets = {
 
 const keys = new Set();
 const touch = new Set();
+const touchMove = {
+  active: false,
+  pointerId: null,
+  startX: 0,
+  startY: 0,
+  x: 0,
+  y: 0,
+  targetWorldX: 0,
+  startedAt: 0,
+  lastTapAt: 0,
+};
 const controller = {
   left: false,
   right: false,
@@ -174,26 +185,11 @@ difficultyButtons.forEach((button) => {
   });
 });
 
-touchControls.querySelectorAll("[data-action]").forEach((button) => {
-  const action = button.dataset.action;
-  const add = (event) => {
-    event.preventDefault();
-    if (action === "cycle") {
-      cycleWeapon();
-      return;
-    }
-    touch.add(action);
-    if (!game.started) startGame();
-  };
-  const remove = (event) => {
-    event.preventDefault();
-    touch.delete(action);
-  };
-  button.addEventListener("pointerdown", add);
-  button.addEventListener("pointerup", remove);
-  button.addEventListener("pointercancel", remove);
-  button.addEventListener("pointerleave", remove);
-});
+touchControls.addEventListener("pointerdown", onGestureStart);
+touchControls.addEventListener("pointermove", onGestureMove);
+touchControls.addEventListener("pointerup", onGestureEnd);
+touchControls.addEventListener("pointercancel", onGestureCancel);
+touchControls.addEventListener("contextmenu", (event) => event.preventDefault());
 
 requestAnimationFrame(loop);
 
@@ -434,8 +430,10 @@ function update(dt) {
 }
 
 function updatePlayer(dt) {
-  const left = keys.has("ArrowLeft") || keys.has("KeyA") || touch.has("left") || controller.left;
-  const right = keys.has("ArrowRight") || keys.has("KeyD") || touch.has("right") || controller.right;
+  if (touchMove.active) updateTouchTargetFromClientX(touchMove.x);
+  const gestureAxis = touchMove.active ? Math.sign(touchMove.targetWorldX - (player.x + player.w / 2)) : 0;
+  const left = keys.has("ArrowLeft") || keys.has("KeyA") || touch.has("left") || gestureAxis < 0 || controller.left;
+  const right = keys.has("ArrowRight") || keys.has("KeyD") || touch.has("right") || gestureAxis > 0 || controller.right;
   const jump = keys.has("Space") || keys.has("ArrowUp") || keys.has("KeyW") || touch.has("jump") || controller.jump;
   const dash = keys.has("ShiftLeft") || keys.has("ShiftRight") || touch.has("dash") || controller.dash;
   const weapon = keys.has("KeyJ") || keys.has("KeyK") || touch.has("attack") || controller.weapon;
@@ -446,6 +444,7 @@ function updatePlayer(dt) {
   let axis = 0;
   if (left) axis -= 1;
   if (right) axis += 1;
+  if (touchMove.active && Math.abs(touchMove.targetWorldX - (player.x + player.w / 2)) < 28) axis = 0;
   if (axis) {
     player.vx += axis * accel * dt;
     if (player.dir !== axis) player.turnTime = 0.12;
@@ -628,6 +627,91 @@ function collectKeyItems() {
     burst(item.x + item.w / 2, item.y + item.h / 2, "#ffe2a4", 26, 360);
     audio.sfx("win");
   }
+}
+
+function onGestureStart(event) {
+  if (event.pointerType === "mouse" || event.target.closest("button")) return;
+  event.preventDefault();
+  if (event.isPrimary === false) {
+    pulseTouch("cycle", 120);
+    cycleWeapon();
+    return;
+  }
+  if (!game.started) {
+    startGame();
+    return;
+  }
+  if (game.over || game.won) return;
+  if (touchControls.hasPointerCapture && !touchControls.hasPointerCapture(event.pointerId)) {
+    try {
+      touchControls.setPointerCapture(event.pointerId);
+    } catch {
+      // Synthetic pointer events in tests may not be capturable.
+    }
+  }
+  touchMove.active = true;
+  touchMove.pointerId = event.pointerId;
+  touchMove.startX = event.clientX;
+  touchMove.startY = event.clientY;
+  touchMove.x = event.clientX;
+  touchMove.y = event.clientY;
+  touchMove.startedAt = performance.now();
+  updateTouchTarget(event);
+}
+
+function onGestureMove(event) {
+  if (!touchMove.active || event.pointerId !== touchMove.pointerId) return;
+  event.preventDefault();
+  touchMove.x = event.clientX;
+  touchMove.y = event.clientY;
+  updateTouchTarget(event);
+}
+
+function onGestureEnd(event) {
+  if (!touchMove.active || event.pointerId !== touchMove.pointerId) return;
+  event.preventDefault();
+  const dx = event.clientX - touchMove.startX;
+  const dy = event.clientY - touchMove.startY;
+  const elapsed = performance.now() - touchMove.startedAt;
+  const distance = Math.hypot(dx, dy);
+  touchMove.active = false;
+  touchMove.pointerId = null;
+  if (dy < -42 && Math.abs(dy) > Math.abs(dx) * 1.15) {
+    pulseTouch("jump", 150);
+    return;
+  }
+  if (Math.abs(dx) > 58 && Math.abs(dx) > Math.abs(dy) * 1.2) {
+    player.dir = dx > 0 ? 1 : -1;
+    pulseTouch("dash", 170);
+    return;
+  }
+  if (elapsed < 250 && distance < 18) {
+    const now = performance.now();
+    if (now - touchMove.lastTapAt < 280) cycleWeapon();
+    else pulseTouch("attack", 160);
+    touchMove.lastTapAt = now;
+  }
+}
+
+function onGestureCancel(event) {
+  if (event.pointerId !== touchMove.pointerId) return;
+  touchMove.active = false;
+  touchMove.pointerId = null;
+}
+
+function updateTouchTarget(event) {
+  updateTouchTargetFromClientX(event.clientX);
+}
+
+function updateTouchTargetFromClientX(clientX) {
+  const rect = canvas.getBoundingClientRect();
+  const normalizedX = clamp((clientX - rect.left) / rect.width, 0, 1);
+  touchMove.targetWorldX = camera.x + normalizedX * W;
+}
+
+function pulseTouch(action, duration) {
+  touch.add(action);
+  window.setTimeout(() => touch.delete(action), duration);
 }
 
 function updateProjectiles(dt) {

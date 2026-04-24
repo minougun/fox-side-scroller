@@ -49,6 +49,7 @@ button {
   position: fixed;
   top: max(14px, env(safe-area-inset-top));
   left: 50%;
+  z-index: 3;
   width: min(930px, calc(100vw - 24px));
   transform: translateX(-50%);
   display: flex;
@@ -65,8 +66,7 @@ button {
 .icon-button,
 .start-button,
 .difficulty-panel,
-.difficulty-button,
-.touch-button {
+.difficulty-button {
   border: 1px solid var(--line);
   background: var(--panel);
   color: var(--ink);
@@ -186,6 +186,7 @@ button {
   position: fixed;
   left: 50%;
   bottom: clamp(26px, 7vh, 64px);
+  z-index: 4;
   min-width: 148px;
   min-height: 48px;
   transform: translateX(-50%);
@@ -205,6 +206,7 @@ button {
   position: fixed;
   left: 50%;
   bottom: clamp(92px, 16vh, 136px);
+  z-index: 4;
   min-width: min(430px, calc(100vw - 32px));
   padding: 14px;
   transform: translateX(-50%);
@@ -248,38 +250,18 @@ button {
 
 .touch-controls {
   position: fixed;
-  left: 50%;
-  bottom: max(14px, env(safe-area-inset-bottom));
-  width: min(930px, calc(100vw - 24px));
-  transform: translateX(-50%);
+  inset: 0;
+  z-index: 2;
   display: none;
-  justify-content: space-between;
-  align-items: end;
-  pointer-events: none;
-}
-
-.touch-group {
-  display: flex;
-  gap: 10px;
-  pointer-events: none;
-}
-
-.touch-button {
-  width: 62px;
-  height: 62px;
-  border-radius: 50%;
   pointer-events: auto;
-  color: var(--ink);
-  font-size: 28px;
-  font-weight: 900;
   touch-action: none;
   user-select: none;
+  -webkit-user-select: none;
 }
 
 @media (hover: none), (pointer: coarse) {
   .touch-controls {
-    display: flex;
-    gap: 10px;
+    display: block;
   }
 }
 
@@ -332,21 +314,6 @@ button {
     font-size: 13px;
   }
 
-  .touch-controls {
-    width: min(100vw - 18px, 930px);
-    bottom: max(10px, env(safe-area-inset-bottom));
-  }
-
-  .touch-group {
-    gap: 6px;
-  }
-
-  .touch-button {
-    width: clamp(44px, 13vw, 62px);
-    height: clamp(44px, 13vw, 62px);
-    font-size: 24px;
-  }
-
 }
 
 @media (hover: none) and (pointer: coarse) and (max-height: 480px) {
@@ -372,17 +339,6 @@ button {
   .icon-button {
     width: 38px;
     height: 38px;
-  }
-
-  .touch-controls {
-    width: min(780px, calc(100vw - 18px));
-    bottom: max(8px, env(safe-area-inset-bottom));
-  }
-
-  .touch-button {
-    width: 54px;
-    height: 54px;
-    font-size: 24px;
   }
 
   .start-button {

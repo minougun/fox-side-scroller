@@ -48,8 +48,9 @@ BGM is generated at runtime through WebAudio. It is an original 16-bit-inspired 
 - 2026-04-25 update: session progression now uses the `1-1`, `1-2`, `1-3` pattern and continues through `3-3`. The original three-session-per-stage rhythm is preserved, while the total local build has nine sessions.
 - 2026-04-25 update: each session now includes a key pickup and a locked gate before the goal. The player must collect the key to open the gate and clear the session.
 - 2026-04-25 update: later sessions remix the existing reachable terrain with denser enemy placement and extra fruit, so the challenge increases without reintroducing unreachable jumps.
-- 2026-04-25 update: mobile play now has dedicated touch controls for left, right, weapon cycle, dash, attack, and jump. HUD score text was adjusted to avoid wrapping on phone-width viewports.
+- 2026-04-25 update: mobile play first used dedicated touch controls for left, right, weapon cycle, dash, attack, and jump. HUD score text was adjusted to avoid wrapping on phone-width viewports.
 - 2026-04-25 update: a pre-start difficulty selector was added. Easy reduces enemy count, speed, patrol range, drone hover amplitude, and enemy HP while giving the player 4 hearts. Normal preserves the baseline. Hard adds extra enemies and increases enemy speed, patrol range, drone hover amplitude, and HP.
+- 2026-04-25 update: mobile controls were changed from visible virtual buttons to a gesture-first touch layer inspired by tap/swipe adventure controls. Hold left/right of the playfield to move, tap to attack, flick up to jump, flick horizontally to dash, and double tap or two-finger tap to cycle collected weapons.
 - Inputs: keyboard, touch buttons, and browser Gamepad API controllers such as DualShock 4 / PS4 controllers.
 - `prefers-reduced-motion` reduces particle count and parallax movement while preserving playability.
 
@@ -61,7 +62,7 @@ BGM is generated at runtime through WebAudio. It is an original 16-bit-inspired 
 - Select sword after pickup: `1`
 - Select gun after pickup: `2`
 - Attack with selected collected weapon: `J` or `K`
-- Touch: `‹`/`›` move, `⌃` jumps, `↯` dashes, `✦` attacks with the selected weapon, and `⇄` cycles collected weapons.
+- Touch: hold left/right side of the playfield to move, tap to attack, flick up to jump, flick left/right to dash, and double tap or two-finger tap to cycle collected weapons.
 - PS4 controller: left stick or D-pad moves, Cross jumps/starts, Square attacks, Circle or R2 dashes, L1 selects sword, R1 selects gun, Triangle cycles collected weapons.
 
 ## Current Session List
