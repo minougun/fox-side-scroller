@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Fox Side Scroller</title>
+    <link rel="stylesheet" href="./src/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <canvas id="game" width="960" height="540" aria-label="Fox Side Scroller game screen"></canvas>
+      <div class="hud" aria-hidden="true">
+        <div class="meter"><span id="hearts"></span></div>
+        <div class="counter"><span id="fruit">0</span>/<span id="fruitTotal">0</span></div>
+        <div class="score">SCORE <span id="score">0</span></div>
+        <div id="weaponHud" class="weapon-hud">
+          <span class="weapon-slot" data-weapon="sword"></span>
+          <span class="weapon-slot" data-weapon="gun"></span>
+        </div>
+        <button id="audioButton" class="icon-button" type="button" title="Sound">♪</button>
+      </div>
+      <div id="touchControls" class="touch-controls" aria-hidden="true">
+        <button data-action="left" class="touch-button">‹</button>
+        <button data-action="right" class="touch-button">›</button>
+        <button data-action="dash" class="touch-button">✦</button>
+        <button data-action="jump" class="touch-button">⌃</button>
+      </div>
+      <button id="startButton" class="start-button" type="button">Start</button>
+    </main>
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>
