@@ -197,7 +197,7 @@ const player = {
 
 const camera = { x: 0, y: 0 };
 const audio = createAudioEngine();
-const game = { started: false, over: false, won: false, time: 0, last: 0, fruitCount: 0, score: 0, stageIndex: 0, stageBanner: 2, shake: 0, hitStop: 0, difficulty: "normal", language: "ja" };
+const game = { started: false, over: false, won: false, time: 0, last: 0, fruitCount: 0, score: 0, stageIndex: 0, stageBanner: 2, shake: 0, hitStop: 0, difficulty: "normal", language: "ja", settingsLocked: false };
 loadStage(0, { keepHealth: false });
 syncLanguage();
 syncHud();
@@ -337,8 +337,8 @@ function syncDifficulty() {
 
 function showStartControls(show) {
   startButton.classList.toggle("hidden", !show);
-  languagePanel.classList.toggle("hidden", !show);
-  difficultyPanel.classList.toggle("hidden", !show);
+  languagePanel.classList.toggle("hidden", !show || game.settingsLocked);
+  difficultyPanel.classList.toggle("hidden", !show || game.settingsLocked);
   touchHint.classList.toggle("hidden", !show);
 }
 
@@ -353,6 +353,7 @@ function currentText() {
 function startGame() {
   if (game.started && !game.over && !game.won) return;
   if (game.over || game.won) resetGame();
+  game.settingsLocked = true;
   game.started = true;
   showStartControls(false);
   audio.start();

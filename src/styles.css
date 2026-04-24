@@ -13,8 +13,9 @@
 html,
 body {
   width: 100%;
-  min-height: 100%;
+  height: 100%;
   margin: 0;
+  overflow: hidden;
   background:
     radial-gradient(circle at 18% 18%, rgba(255, 179, 44, 0.2), transparent 28rem),
     linear-gradient(135deg, #1e2822, #16100f 58%, #261b18);
@@ -36,10 +37,11 @@ button {
 }
 
 #game {
-  width: min(100vw, calc(100vh * 16 / 9));
-  height: min(100vh, calc(100vw * 9 / 16));
-  max-width: 100vw;
-  max-height: 100vh;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  max-width: none;
+  max-height: none;
   display: block;
   image-rendering: auto;
   background: #151b18;

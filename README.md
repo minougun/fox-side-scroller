@@ -24,8 +24,7 @@ Then open:
 
 ## Controls
 
-- Select language before start: Japanese by default, or English
-- Select difficulty before start: Easy, Normal, or Hard
+- First launch only: select language and difficulty before starting
 - Move: Left/Right or A/D
 - Jump: Space, Up, or W
 - Dash: Shift
