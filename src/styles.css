@@ -4,6 +4,8 @@
   --ink: #fff4df;
   --accent: #ffb32c;
   --line: rgba(255, 244, 223, 0.2);
+  --special: #8dd9ff;
+  --special-hot: #fff1cf;
 }
 
 * {
@@ -65,6 +67,7 @@ button {
 .meter,
 .counter,
 .score,
+.special-gauge,
 .weapon-hud,
 .icon-button,
 .start-button,
@@ -107,6 +110,77 @@ button {
   font-variant-numeric: tabular-nums;
   text-shadow: 0 2px 0 rgba(0, 0, 0, 0.62);
   white-space: nowrap;
+}
+
+.special-gauge {
+  position: relative;
+  width: 146px;
+  min-height: 42px;
+  overflow: hidden;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0;
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.special-gauge::before {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  border-radius: 5px;
+  background: rgba(10, 13, 18, 0.72);
+  box-shadow: inset 0 0 0 1px rgba(255, 244, 223, 0.1);
+}
+
+.special-gauge-fill {
+  position: absolute;
+  inset: 5px auto 5px 5px;
+  width: 0;
+  max-width: calc(100% - 10px);
+  border-radius: 5px;
+  background: linear-gradient(90deg, var(--special), var(--accent), var(--special-hot));
+  box-shadow: 0 0 18px rgba(141, 217, 255, 0.42);
+  transition: width 140ms ease-out;
+}
+
+.special-gauge-text {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--special-hot);
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.68);
+}
+
+.special-gauge.active {
+  border-color: rgba(141, 217, 255, 0.56);
+  box-shadow: 0 0 0 1px rgba(141, 217, 255, 0.2), 0 0 28px rgba(141, 217, 255, 0.36), 0 12px 32px rgba(0, 0, 0, 0.24);
+}
+
+.special-gauge.active .special-gauge-fill {
+  background: linear-gradient(90deg, #fff1cf, #8dd9ff, #fff1cf);
+  box-shadow: 0 0 22px rgba(255, 241, 207, 0.58);
+}
+
+.special-gauge.pulse {
+  animation: specialGaugePulse 360ms ease-out;
+}
+
+@keyframes specialGaugePulse {
+  0% {
+    transform: scale(1);
+  }
+
+  40% {
+    transform: scale(1.045);
+  }
+
+  100% {
+    transform: scale(1);
+  }
 }
 
 .weapon-hud {
@@ -330,12 +404,15 @@ button {
 
   .hud {
     top: max(9px, env(safe-area-inset-top));
+    flex-wrap: wrap;
+    justify-content: center;
     gap: 6px;
   }
 
   .meter,
   .counter,
   .score,
+  .special-gauge,
   .weapon-hud {
     min-height: 36px;
     padding: 7px 10px;
@@ -344,6 +421,11 @@ button {
   .score {
     min-width: 98px;
     font-size: 11px;
+  }
+
+  .special-gauge {
+    width: 104px;
+    font-size: 10px;
   }
 
   .counter {
@@ -408,6 +490,7 @@ button {
   .meter,
   .counter,
   .score,
+  .special-gauge,
   .weapon-hud {
     min-height: 36px;
     padding: 7px 10px;
@@ -416,6 +499,11 @@ button {
   .score {
     min-width: 112px;
     font-size: 13px;
+  }
+
+  .special-gauge {
+    width: 132px;
+    font-size: 11px;
   }
 
   .icon-button {
@@ -466,6 +554,8 @@ button {
   *,
   *::before,
   *::after {
+    animation: none !important;
     scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
   }
 }

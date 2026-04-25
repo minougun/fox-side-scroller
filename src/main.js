@@ -1,9 +1,13 @@
 const canvas = document.querySelector("#game");
 const displayCtx = canvas.getContext("2d", { alpha: false });
+const hudEl = document.querySelector(".hud");
 const heartsEl = document.querySelector("#hearts");
 const fruitEl = document.querySelector("#fruit");
 const fruitTotalEl = document.querySelector("#fruitTotal");
 const scoreEl = document.querySelector("#score");
+const specialGaugeEl = document.querySelector("#specialGauge");
+const specialGaugeFillEl = document.querySelector("#specialGaugeFill");
+const specialGaugeTextEl = document.querySelector("#specialGaugeText");
 const weaponHudEl = document.querySelector("#weaponHud");
 const startButton = document.querySelector("#startButton");
 const audioButton = document.querySelector("#audioButton");
@@ -81,6 +85,8 @@ const TEXT = {
     touchMove: "長押し: 移動",
     touchJump: "ダブルタップ: ジャンプ",
     touchAttack: "タップ: 攻撃",
+    specialReady: "必殺解放",
+    specialGauge: "必殺",
   },
   en: {
     languageTitle: "Language",
@@ -99,8 +105,13 @@ const TEXT = {
     touchMove: "Hold: Move",
     touchJump: "Double Tap: Jump",
     touchAttack: "Tap: Attack",
+    specialReady: "SPECIAL",
+    specialGauge: "SPECIAL",
   },
 };
+const SPECIAL_THRESHOLD = 1000;
+const SPECIAL_DURATION = 9;
+const SPECIAL_MAX_GAIN = 220;
 const DIFFICULTIES = {
   easy: {
     label: "Easy",
@@ -131,6 +142,24 @@ const DIFFICULTIES = {
     hpDelta: 1,
     playerHealth: 3,
     hardExtras: true,
+  },
+};
+const ENEMY_AFFINITY = {
+  beetle: {
+    immune: ["stomp"],
+    bonus: { sword: 1 },
+  },
+  slime: {
+    immune: ["gun"],
+    bonus: { stomp: 1 },
+  },
+  drone: {
+    immune: ["stomp", "dash"],
+    bonus: { gun: 1 },
+  },
+  pod: {
+    immune: ["sword"],
+    bonus: { dash: 1, gun: 1 },
   },
 };
 
@@ -197,7 +226,25 @@ const player = {
 
 const camera = { x: 0, y: 0 };
 const audio = createAudioEngine();
-const game = { started: false, over: false, won: false, time: 0, last: 0, fruitCount: 0, score: 0, stageIndex: 0, stageBanner: 2, shake: 0, hitStop: 0, difficulty: "normal", language: "ja", settingsLocked: false };
+const game = {
+  started: false,
+  over: false,
+  won: false,
+  time: 0,
+  last: 0,
+  fruitCount: 0,
+  score: 0,
+  specialGauge: 0,
+  specialTimer: 0,
+  specialPulse: 0,
+  stageIndex: 0,
+  stageBanner: 2,
+  shake: 0,
+  hitStop: 0,
+  difficulty: "normal",
+  language: "ja",
+  settingsLocked: false,
+};
 loadStage(0, { keepHealth: false });
 syncLanguage();
 syncHud();
@@ -461,7 +508,12 @@ function loadStage(index, { keepHealth }) {
   game.over = false;
   game.won = false;
   game.fruitCount = 0;
-  if (!keepHealth) game.score = 0;
+  if (!keepHealth) {
+    game.score = 0;
+    game.specialGauge = 0;
+    game.specialTimer = 0;
+    game.specialPulse = 0;
+  }
   game.stageBanner = 2.2;
   fruitTotalEl.textContent = String(fruit.length);
   particles.length = 0;
@@ -492,6 +544,7 @@ function update(dt) {
   game.stageBanner = Math.max(0, game.stageBanner - dt);
   game.shake = Math.max(0, game.shake - dt * 24);
   audio.update(dt, player.x / worldW, player.grounded ? 1 : 0.65);
+  updateSpecialMode(dt);
   if (simDt > 0) {
     updatePlayer(simDt);
     updateProjectiles(simDt);
@@ -643,8 +696,9 @@ function updateEnemies(dt) {
     if (stomp || attackHit || swordHit) {
       if ((attackHit || swordHit) && enemy.lastHitId === player.attackId) continue;
       enemy.lastHitId = player.attackId;
-      player.vy = -520;
-      hitEnemy(enemy, swordHit ? 2 : attackHit ? 2 : 1, player.dir, swordHit ? "sword" : attackHit ? "dash" : "stomp");
+      const source = swordHit ? "sword" : attackHit ? "dash" : "stomp";
+      const damaged = hitEnemy(enemy, swordHit ? 2 : attackHit ? 2 : 1, player.dir, source);
+      if (stomp && damaged) player.vy = -520;
     } else {
       hurtPlayer(1);
     }
@@ -827,7 +881,12 @@ function updateProjectiles(dt) {
 }
 
 function hitEnemy(enemy, damage, dir, source) {
-  enemy.hp -= damage;
+  const actualDamage = enemyDamage(enemy, damage, source);
+  if (actualDamage <= 0) {
+    blockEnemyHit(enemy, dir, source);
+    return false;
+  }
+  enemy.hp -= actualDamage;
   enemy.hit = 0.18;
   enemy.stun = source === "gun" ? 0.05 : 0.1;
   enemy.hurtDir = dir;
@@ -840,17 +899,41 @@ function hitEnemy(enemy, damage, dir, source) {
   game.shake = Math.max(game.shake, reducedMotion ? 0 : source === "gun" ? 7 : 10);
   audio.sfx(enemy.hp <= 0 ? "enemy" : "hit");
   if (enemy.hp <= 0) defeatEnemy(enemy, dir, source);
+  return true;
+}
+
+function enemyDamage(enemy, damage, source) {
+  const affinity = ENEMY_AFFINITY[enemy.kind];
+  if (isSpecialActive()) return damage + 2 + (affinity?.bonus?.[source] || 0);
+  if (affinity?.immune?.includes(source)) return 0;
+  return damage + (affinity?.bonus?.[source] || 0);
+}
+
+function blockEnemyHit(enemy, dir, source) {
+  enemy.hit = 0.12;
+  enemy.stun = source === "gun" ? 0.04 : 0.08;
+  enemy.hurtDir = -dir;
+  enemy.x = clamp(enemy.x + dir * 4, enemy.min, enemy.max);
+  if (source === "stomp") player.vy = -360;
+  if (source === "dash" || source === "sword") player.vx = -dir * 180;
+  const x = enemy.x + enemy.w / 2;
+  const y = enemy.y + enemy.h / 2;
+  shieldBurst(x + dir * enemy.w * 0.32, y, dir);
+  game.hitStop = Math.max(game.hitStop, reducedMotion ? 0.01 : 0.035);
+  game.shake = Math.max(game.shake, reducedMotion ? 0 : 4);
+  audio.sfx("hit");
 }
 
 function defeatEnemy(enemy, dir = player.dir, source = "dash") {
   enemy.dead = true;
   const score = enemyScore(enemy, source);
-  game.score += score;
+  const earnedScore = addScore(score);
   scorePopups.push({
     x: enemy.x + enemy.w / 2 + dir * 36,
     y: enemy.y - 20,
-    points: score,
+    points: earnedScore,
     source,
+    special: isSpecialActive(),
     life: reducedMotion ? 1.0 : 1.25,
     maxLife: reducedMotion ? 1.0 : 1.25,
   });
@@ -868,6 +951,58 @@ function enemyScore(enemy, source) {
   return base + bonus;
 }
 
+function addScore(points) {
+  const multiplier = isSpecialActive() ? 2 : 1;
+  const earned = points * multiplier;
+  game.score += earned;
+  if (!isSpecialActive()) chargeSpecial(Math.min(points, SPECIAL_MAX_GAIN));
+  syncHud();
+  return earned;
+}
+
+function chargeSpecial(points) {
+  game.specialGauge = Math.min(SPECIAL_THRESHOLD, game.specialGauge + points);
+  game.specialPulse = reducedMotion ? 0.2 : 0.38;
+  if (game.specialGauge >= SPECIAL_THRESHOLD) startSpecialMode();
+}
+
+function startSpecialMode() {
+  game.specialGauge = 0;
+  game.specialTimer = SPECIAL_DURATION;
+  game.specialPulse = reducedMotion ? 0.55 : 1.1;
+  game.shake = Math.max(game.shake, reducedMotion ? 0 : 15);
+  game.hitStop = Math.max(game.hitStop, reducedMotion ? 0.02 : 0.12);
+  specialBurst(player.x + player.w / 2, player.y + player.h / 2);
+  audio.sfx("win");
+}
+
+function updateSpecialMode(dt) {
+  game.specialPulse = Math.max(0, game.specialPulse - dt);
+  const activeBefore = isSpecialActive();
+  if (!activeBefore) {
+    if (game.specialPulse > 0) syncHud();
+    return;
+  }
+  game.specialTimer = Math.max(0, game.specialTimer - dt);
+  if (!reducedMotion && game.specialTimer > 0 && Math.floor(game.time * 12) % 5 === 0) {
+    particles.push({
+      x: player.x + player.w / 2 + (rand() - 0.5) * 78,
+      y: player.y + player.h / 2 + (rand() - 0.5) * 62,
+      vx: (rand() - 0.5) * 90,
+      vy: -120 - rand() * 120,
+      size: 4 + rand() * 5,
+      life: 0.28 + rand() * 0.16,
+      maxLife: 0.44,
+      color: rand() > 0.45 ? "#8dd9ff" : "#fff1cf",
+    });
+  }
+  syncHud();
+}
+
+function isSpecialActive() {
+  return game.specialTimer > 0;
+}
+
 function hurtPlayer(amount) {
   if (player.invuln > 0) return;
   player.health -= amount;
@@ -879,6 +1014,7 @@ function hurtPlayer(amount) {
   audio.sfx("hurt");
   syncHud();
   if (player.health <= 0) {
+    game.specialTimer = 0;
     game.over = true;
     startButton.textContent = currentText().retry;
     showStartControls(true);
@@ -907,6 +1043,7 @@ function win() {
     return;
   }
   game.won = true;
+  game.specialTimer = 0;
   player.win = true;
   startButton.textContent = currentText().again;
   showStartControls(true);
@@ -918,6 +1055,14 @@ function syncHud() {
   heartsEl.textContent = "♥".repeat(Math.max(0, player.health));
   fruitEl.textContent = String(game.fruitCount);
   scoreEl.textContent = formatScore(game.score);
+  const active = isSpecialActive();
+  const ratio = active ? game.specialTimer / SPECIAL_DURATION : game.specialGauge / SPECIAL_THRESHOLD;
+  const percent = Math.round(clamp(ratio, 0, 1) * 100);
+  const label = currentText().specialGauge;
+  specialGaugeFillEl.style.width = `${percent}%`;
+  specialGaugeTextEl.textContent = active ? `${label} ${game.specialTimer.toFixed(1)}s` : `${label} ${percent}%`;
+  specialGaugeEl.classList.toggle("active", active);
+  specialGaugeEl.classList.toggle("pulse", game.specialPulse > 0);
   weaponHudEl.querySelectorAll("[data-weapon]").forEach((slot) => {
     const type = slot.dataset.weapon;
     slot.classList.toggle("owned", player.weapons[type]);
@@ -966,6 +1111,7 @@ function draw() {
   displayCtx.drawImage(pixelCanvas, 0, 0, W, H);
   ctx = displayCtx;
   drawSceneGrade();
+  drawSpecialOverlay();
   drawForeground();
   drawStageBanner();
   if (!game.started || game.over || game.won) drawOverlay();
@@ -1709,7 +1855,7 @@ function drawScorePopups() {
     ctx.lineWidth = 6;
     ctx.strokeStyle = "rgba(0, 0, 0, 0.82)";
     ctx.strokeText(formatScore(popup.points), 0, 0);
-    ctx.fillStyle = "#fff1cf";
+    ctx.fillStyle = popup.special ? "#8dd9ff" : "#fff1cf";
     ctx.fillText(formatScore(popup.points), 0, 0);
     ctx.restore();
   }
@@ -1761,6 +1907,42 @@ function impactBurst(x, y, color, dir, source) {
   }
 }
 
+function shieldBurst(x, y, dir) {
+  const count = reducedMotion ? 4 : 12;
+  for (let i = 0; i < count; i += 1) {
+    const angle = -0.85 + (i / Math.max(1, count - 1)) * 1.7;
+    const s = 160 + rand() * 150;
+    particles.push({
+      x,
+      y,
+      vx: Math.cos(angle) * s * dir,
+      vy: Math.sin(angle) * s - 30,
+      size: 3 + rand() * 5,
+      life: 0.16 + rand() * 0.18,
+      maxLife: 0.34,
+      color: i % 3 === 0 ? "#fff4df" : "#8dd9ff",
+    });
+  }
+}
+
+function specialBurst(x, y) {
+  const count = reducedMotion ? 18 : 64;
+  for (let i = 0; i < count; i += 1) {
+    const a = (i / count) * Math.PI * 2 + rand() * 0.18;
+    const s = 180 + rand() * 430;
+    particles.push({
+      x,
+      y,
+      vx: Math.cos(a) * s,
+      vy: Math.sin(a) * s - 80,
+      size: 4 + rand() * 8,
+      life: 0.34 + rand() * 0.34,
+      maxLife: 0.68,
+      color: i % 3 === 0 ? "#fff1cf" : i % 2 === 0 ? "#8dd9ff" : "#ffb32c",
+    });
+  }
+}
+
 function burst(x, y, color, count, speed) {
   if (reducedMotion) count = Math.ceil(count * 0.35);
   for (let i = 0; i < count; i += 1) {
@@ -1803,19 +1985,48 @@ function drawSceneGrade() {
   ctx.restore();
 }
 
+function drawSpecialOverlay() {
+  if (!isSpecialActive() && game.specialPulse <= 0) return;
+  const activeAlpha = isSpecialActive() ? 0.18 + Math.sin(game.time * 10) * (reducedMotion ? 0 : 0.04) : 0;
+  const pulseAlpha = Math.min(0.38, game.specialPulse * 0.34);
+  ctx.save();
+  ctx.globalCompositeOperation = "screen";
+  const glow = ctx.createRadialGradient(W * 0.5, H * 0.5, W * 0.08, W * 0.5, H * 0.5, W * 0.76);
+  glow.addColorStop(0, `rgba(255, 241, 207, ${activeAlpha + pulseAlpha})`);
+  glow.addColorStop(0.46, `rgba(141, 217, 255, ${(activeAlpha + pulseAlpha) * 0.62})`);
+  glow.addColorStop(1, "rgba(141, 217, 255, 0)");
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, W, H);
+  ctx.globalCompositeOperation = "source-over";
+  if (isSpecialActive()) {
+    const text = currentText();
+    const y = hudClearanceY(68);
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = "900 24px Inter, system-ui, sans-serif";
+    ctx.lineWidth = 5;
+    ctx.strokeStyle = "rgba(10, 8, 6, 0.74)";
+    ctx.strokeText(text.specialReady, W / 2, y);
+    ctx.fillStyle = "#fff1cf";
+    ctx.fillText(text.specialReady, W / 2, y);
+  }
+  ctx.restore();
+}
+
 function drawStageBanner() {
   if (game.stageBanner <= 0 || game.over || game.won) return;
   const alpha = Math.min(1, game.stageBanner / 0.55);
   const stage = STAGES[game.stageIndex];
+  const y = hudClearanceY(104);
   ctx.save();
   ctx.globalAlpha = alpha;
   ctx.textAlign = "center";
   ctx.fillStyle = "#fff4df";
   ctx.font = "900 28px Inter, system-ui, sans-serif";
-  ctx.fillText(stage.label, W / 2, 104);
+  ctx.fillText(stage.label, W / 2, y);
   ctx.font = "800 16px Inter, system-ui, sans-serif";
   ctx.fillStyle = "#ffe2a4";
-  ctx.fillText(stage.name, W / 2, 132);
+  ctx.fillText(stage.name, W / 2, y + 28);
   ctx.restore();
 }
 
@@ -1828,7 +2039,8 @@ function drawOverlay() {
   ctx.font = "900 56px Inter, system-ui, sans-serif";
   const stage = STAGES[game.stageIndex];
   const text = currentText();
-  ctx.fillText(game.won ? text.allClear : game.over ? text.miss : `${stage.label} ${stage.name}`.toUpperCase(), 58, 130);
+  const y = hudClearanceY(130);
+  ctx.fillText(game.won ? text.allClear : game.over ? text.miss : `${stage.label} ${stage.name}`.toUpperCase(), 58, y);
   ctx.font = "800 22px Inter, system-ui, sans-serif";
   ctx.fillStyle = "#ffe2a4";
   const line = game.won
@@ -1836,8 +2048,17 @@ function drawOverlay() {
     : game.over
       ? text.tryAgain
       : `${text.session} ${stage.label} / ${STAGES[STAGES.length - 1].label}`;
-  ctx.fillText(line, 62, 172);
+  ctx.fillText(line, 62, y + 42);
   ctx.restore();
+}
+
+function hudClearanceY(baseY) {
+  const canvasBox = canvas.getBoundingClientRect();
+  const hudBox = hudEl.getBoundingClientRect();
+  if (!canvasBox.height) return baseY;
+  const hudBottomInCanvas = Math.max(0, hudBox.bottom - canvasBox.top);
+  const minY = (hudBottomInCanvas + 52) * (H / canvasBox.height);
+  return Math.max(baseY, minY);
 }
 
 function roundedRect(x, y, w, h, r, fill) {

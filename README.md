@@ -43,3 +43,16 @@ The current local build has nine sessions: 1-1, 1-2, 1-3, 2-1, 2-2, 2-3, 3-1, 3-
 - Easy: fewer enemies, slower patrols, shorter drone movement, and 4 player hearts
 - Normal: baseline enemy count, speed, movement, and 3 player hearts
 - Hard: extra enemies, faster patrols, wider movement, stronger enemy HP, and 3 player hearts
+
+## Enemy Affinities
+
+- Beetles resist stomps and are weaker to swords.
+- Slimes absorb gunshots and are weaker to stomps.
+- Drones resist stomps and dash attacks, and are weaker to guns.
+- Pods deflect swords and are weaker to dash attacks and guns.
+
+## Special Gauge
+
+- Enemy defeats fill the special gauge.
+- At 100%, the game automatically enters a 9-second special mode.
+- During special mode, attacks pierce enemy resistances, deal extra damage, and defeated enemies award double score.
